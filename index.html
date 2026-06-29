@@ -33,24 +33,17 @@
         let isAbsenPulang = false;
         let lat = 0, lng = 0;
 
-        // 1. Inisialisasi Mode Berdasarkan Jam
         window.onload = () => {
             const jam = new Date().getHours();
             isAbsenPulang = (jam >= 14);
 
-            if (isAbsenPulang) {
-                document.getElementById('tvJudul').innerText = "Absensi Pulang";
-                document.getElementById('layoutInput').classList.remove('hidden');
-                document.getElementById('tvStatus').innerText = "Status: Siap Absen Pulang";
-            } else {
-                document.getElementById('tvJudul').innerText = "Absensi Masuk";
-                document.getElementById('tvStatus').innerText = "Status: Siap Absen Datang";
-            }
+            document.getElementById('tvJudul').innerText = isAbsenPulang ? "Absensi Pulang" : "Absensi Masuk";
+            if (isAbsenPulang) document.getElementById('layoutInput').classList.remove('hidden');
+            document.getElementById('tvStatus').innerText = "Status: Siap Absen " + (isAbsenPulang ? "Pulang" : "Datang");
             
             initGPS();
         };
 
-        // 2. Logika GPS
         function initGPS() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(pos => {
@@ -64,33 +57,48 @@
             }
         }
 
-        // 3. Logika Pengiriman (Meniru sendDataToCloud)
         async function prosesAbsen() {
             const btn = document.getElementById('btnAbsen');
+            const deviceId = localStorage.getItem("webDeviceId");
+
+            if (!deviceId) {
+                alert("Perangkat belum terdaftar di sistem!");
+                return;
+            }
+
             btn.disabled = true;
-            btn.innerText = "Mengirim...";
+            btn.innerText = "Memverifikasi...";
 
             const payload = {
                 action: "verify",
-                deviceId: localStorage.getItem("webDeviceId") || "WEB-UNREGISTERED",
+                deviceId: deviceId,
                 uraianTugas: isAbsenPulang ? document.getElementById('etUraian').value : "Absen Masuk Kerja",
                 outputKegiatan: isAbsenPulang ? document.getElementById('etOutput').value : "Hadir",
                 latitude: lat,
-                longitude: lng,
-                isMock: false // Web standar tidak memiliki akses flag mock
+                longitude: lng
             };
 
             try {
+                // Gunakan mode 'cors' agar kita bisa menerima teks respons dari GAS
                 const res = await fetch(scriptUrl, {
                     method: 'POST',
-                    mode: 'no-cors', // Sesuaikan dengan setup GAS Anda
+                    mode: 'cors', 
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 
-                alert("Absensi berhasil diproses!");
-                location.reload();
+                const responseText = await res.text();
+
+                if (responseText.includes("Terdaftar")) {
+                    alert("Absensi Berhasil: " + responseText);
+                    location.reload();
+                } else {
+                    alert("Akses Ditolak: " + responseText);
+                    btn.disabled = false;
+                    btn.innerText = "ABSEN SEKARANG";
+                }
             } catch (e) {
-                alert("Kesalahan Koneksi");
+                alert("Kesalahan Koneksi ke Server");
                 btn.disabled = false;
                 btn.innerText = "ABSEN SEKARANG";
             }
