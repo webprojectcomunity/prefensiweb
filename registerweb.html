@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrasi Karyawan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">Registrasi Karyawan</h2>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">ID Karyawan</label>
+                <input type="text" id="etIdKaryawan" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Nama Lengkap</label>
+                <input type="text" id="etNamaKaryawan" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+
+            <button onclick="prosesPendaftaran()" id="btnSimpanDaftar" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition">
+                DAFTAR SEKARANG
+            </button>
+        </div>
+
+        <p id="tvStatusReg" class="mt-6 text-center text-sm text-slate-600 font-medium"></p>
+    </div>
+
+    <script>
+        // URL Apps Script Anda
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbzFi2rasPQracQJ9WMU3805SjnmfyNxtMYIli0rzLuWI-Yfx2m3Q_aXLGLgTJ7fh41U/exec";
+
+        // Mendapatkan ID Unik untuk browser (pengganti ANDROID_ID)
+        let deviceIdWeb = localStorage.getItem("webDeviceId");
+        if (!deviceIdWeb) {
+            deviceIdWeb = 'WEB-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem("webDeviceId", deviceIdWeb);
+        }
+
+        async function prosesPendaftaran() {
+            const id = document.getElementById('etIdKaryawan').value.trim();
+            const nama = document.getElementById('etNamaKaryawan').value.trim();
+            const statusLabel = document.getElementById('tvStatusReg');
+
+            if (!id || !nama) {
+                alert("ID dan Nama wajib diisi!");
+                return;
+            }
+
+            statusLabel.innerText = "Sedang mendaftarkan ke Cloud...";
+            
+            const payload = {
+                action: "register",
+                id: id,
+                nama: nama,
+                deviceId: deviceIdWeb
+            };
+
+            try {
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors', // Penting untuk bypass pengecekan CORS sederhana
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Catatan: mode 'no-cors' membuat response.text() tidak bisa dibaca isinya.
+                // Jika ingin membaca pesan sukses, gunakan mode 'cors' dan pastikan 
+                // Google Apps Script Anda sudah memiliki fungsi doOptions() dengan header Access-Control-Allow-Origin: *
+                
+                statusLabel.innerText = "Berhasil: Karyawan Terdaftar!";
+                alert("Data Master Berhasil Disimpan");
+                
+                // Reset Form
+                document.getElementById('etIdKaryawan').value = "";
+                document.getElementById('etNamaKaryawan').value = "";
+
+            } catch (error) {
+                statusLabel.innerText = "Gagal menghubungi server";
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

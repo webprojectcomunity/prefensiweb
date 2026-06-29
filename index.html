@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Karyawan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+
+    <div id="cardAbsen" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md transition-all">
+        <h2 id="tvJudul" class="text-2xl font-bold text-center text-slate-800 mb-2">Absensi</h2>
+        <p id="tvStatus" class="text-center text-slate-500 text-sm mb-6">Mencari lokasi GPS...</p>
+        
+        <div id="formContainer" class="space-y-4">
+            <div id="layoutInput" class="hidden space-y-4">
+                <textarea id="etUraian" class="w-full p-3 border rounded-xl" placeholder="Uraian Tugas"></textarea>
+                <input type="text" id="etOutput" class="w-full p-3 border rounded-xl" placeholder="Output Kegiatan">
+            </div>
+            
+            <button id="btnAbsen" disabled onclick="prosesAbsen()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl disabled:bg-slate-300 transition">
+                ABSEN SEKARANG
+            </button>
+        </div>
+        
+        <button onclick="window.location.href='registerweb.html'" class="w-full mt-6 text-slate-400 text-xs text-center hover:underline">
+            Belum terdaftar? Daftar di sini
+        </button>
+    </div>
+
+    <script>
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbzFi2rasPQracQJ9WMU3805SjnmfyNxtMYIli0rzLuWI-Yfx2m3Q_aXLGLgTJ7fh41U/exec";
+        let isAbsenPulang = false;
+        let lat = 0, lng = 0;
+
+        // 1. Inisialisasi Mode Berdasarkan Jam
+        window.onload = () => {
+            const jam = new Date().getHours();
+            isAbsenPulang = (jam >= 14);
+
+            if (isAbsenPulang) {
+                document.getElementById('tvJudul').innerText = "Absensi Pulang";
+                document.getElementById('layoutInput').classList.remove('hidden');
+                document.getElementById('tvStatus').innerText = "Status: Siap Absen Pulang";
+            } else {
+                document.getElementById('tvJudul').innerText = "Absensi Masuk";
+                document.getElementById('tvStatus').innerText = "Status: Siap Absen Datang";
+            }
+            
+            initGPS();
+        };
+
+        // 2. Logika GPS
+        function initGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    lat = pos.coords.latitude;
+                    lng = pos.coords.longitude;
+                    document.getElementById('btnAbsen').disabled = false;
+                    document.getElementById('tvStatus').innerText = "📍 Lokasi Terdeteksi";
+                }, () => {
+                    document.getElementById('tvStatus').innerText = "⚠️ Gagal mendapatkan lokasi";
+                }, { enableHighAccuracy: true });
+            }
+        }
+
+        // 3. Logika Pengiriman (Meniru sendDataToCloud)
+        async function prosesAbsen() {
+            const btn = document.getElementById('btnAbsen');
+            btn.disabled = true;
+            btn.innerText = "Mengirim...";
+
+            const payload = {
+                action: "verify",
+                deviceId: localStorage.getItem("webDeviceId") || "WEB-UNREGISTERED",
+                uraianTugas: isAbsenPulang ? document.getElementById('etUraian').value : "Absen Masuk Kerja",
+                outputKegiatan: isAbsenPulang ? document.getElementById('etOutput').value : "Hadir",
+                latitude: lat,
+                longitude: lng,
+                isMock: false // Web standar tidak memiliki akses flag mock
+            };
+
+            try {
+                const res = await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors', // Sesuaikan dengan setup GAS Anda
+                    body: JSON.stringify(payload)
+                });
+                
+                alert("Absensi berhasil diproses!");
+                location.reload();
+            } catch (e) {
+                alert("Kesalahan Koneksi");
+                btn.disabled = false;
+                btn.innerText = "ABSEN SEKARANG";
+            }
+        }
+    </script>
+</body>
+</html>
