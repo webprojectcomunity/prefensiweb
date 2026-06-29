@@ -44,19 +44,40 @@
             initGPS();
         };
 
-        function initGPS() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    lat = pos.coords.latitude;
-                    lng = pos.coords.longitude;
-                    document.getElementById('btnAbsen').disabled = false;
-                    document.getElementById('tvStatus').innerText = "📍 Lokasi Terdeteksi";
-                }, () => {
-                    document.getElementById('tvStatus').innerText = "⚠️ Gagal mendapatkan lokasi";
-                }, { enableHighAccuracy: true });
-            }
-        }
+       // 2. Logika GPS yang diperbarui dengan User Alert
+function initGPS() {
+    if (!navigator.geolocation) {
+        alert("Browser Anda tidak mendukung fitur lokasi. Silakan gunakan browser lain seperti Chrome atau Edge.");
+        return;
+    }
 
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            lat = pos.coords.latitude;
+            lng = pos.coords.longitude;
+            document.getElementById('btnAbsen').disabled = false;
+            document.getElementById('tvStatus').innerText = "📍 Lokasi Terdeteksi";
+        }, 
+        (error) => {
+            // Logika baru: Memberikan pesan spesifik berdasarkan alasan error
+            let pesan = "Gagal mendapatkan lokasi. ";
+            if (error.code === error.PERMISSION_DENIED) {
+                pesan = "⚠️ Izin lokasi ditolak! Silakan aktifkan izin lokasi di pengaturan browser Anda agar tombol Absen dapat digunakan.";
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                pesan = "⚠️ Lokasi tidak tersedia. Pastikan GPS perangkat Anda aktif.";
+            } else {
+                pesan = "⚠️ Terjadi kesalahan saat mengakses lokasi.";
+            }
+            
+            document.getElementById('tvStatus').innerText = pesan;
+            alert(pesan); // Memberikan alert agar pengguna sadar
+            
+            // Tombol tetap disabled (abu-abu) karena lokasi belum didapat
+            document.getElementById('btnAbsen').disabled = true;
+        }, 
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
         async function prosesAbsen() {
             const btn = document.getElementById('btnAbsen');
             const deviceId = localStorage.getItem("webDeviceId");
