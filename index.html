@@ -8,7 +8,7 @@
 </head>
 <body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
 
-    <div id="cardAbsen" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md transition-all">
+    <div id="cardAbsen" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <h2 id="tvJudul" class="text-2xl font-bold text-center text-slate-800 mb-2">Absensi</h2>
         <p id="tvStatus" class="text-center text-slate-500 text-sm mb-6">Mencari lokasi GPS...</p>
         
@@ -36,56 +36,30 @@
         window.onload = () => {
             const jam = new Date().getHours();
             isAbsenPulang = (jam >= 14);
-
             document.getElementById('tvJudul').innerText = isAbsenPulang ? "Absensi Pulang" : "Absensi Masuk";
             if (isAbsenPulang) document.getElementById('layoutInput').classList.remove('hidden');
-            document.getElementById('tvStatus').innerText = "Status: Siap Absen " + (isAbsenPulang ? "Pulang" : "Datang");
-            
+            document.getElementById('tvStatus').innerText = "Status: Siap Absen";
             initGPS();
         };
 
-       // 2. Logika GPS yang diperbarui dengan User Alert
-function initGPS() {
-    if (!navigator.geolocation) {
-        alert("Browser Anda tidak mendukung fitur lokasi. Silakan gunakan browser lain seperti Chrome atau Edge.");
-        return;
-    }
+        function initGPS() {
+            if (!navigator.geolocation) { alert("GPS tidak didukung."); return; }
+            navigator.geolocation.getCurrentPosition(pos => {
+                lat = pos.coords.latitude;
+                lng = pos.coords.longitude;
+                document.getElementById('btnAbsen').disabled = false;
+                document.getElementById('tvStatus').innerText = "📍 Lokasi Terdeteksi";
+            }, err => {
+                document.getElementById('tvStatus').innerText = "⚠️ Aktifkan Izin Lokasi!";
+                alert("Izin lokasi diperlukan.");
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        }
 
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            lat = pos.coords.latitude;
-            lng = pos.coords.longitude;
-            document.getElementById('btnAbsen').disabled = false;
-            document.getElementById('tvStatus').innerText = "📍 Lokasi Terdeteksi";
-        }, 
-        (error) => {
-            // Logika baru: Memberikan pesan spesifik berdasarkan alasan error
-            let pesan = "Gagal mendapatkan lokasi. ";
-            if (error.code === error.PERMISSION_DENIED) {
-                pesan = "⚠️ Izin lokasi ditolak! Silakan aktifkan izin lokasi di pengaturan browser Anda agar tombol Absen dapat digunakan.";
-            } else if (error.code === error.POSITION_UNAVAILABLE) {
-                pesan = "⚠️ Lokasi tidak tersedia. Pastikan GPS perangkat Anda aktif.";
-            } else {
-                pesan = "⚠️ Terjadi kesalahan saat mengakses lokasi.";
-            }
-            
-            document.getElementById('tvStatus').innerText = pesan;
-            alert(pesan); // Memberikan alert agar pengguna sadar
-            
-            // Tombol tetap disabled (abu-abu) karena lokasi belum didapat
-            document.getElementById('btnAbsen').disabled = true;
-        }, 
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
-}
         async function prosesAbsen() {
             const btn = document.getElementById('btnAbsen');
             const deviceId = localStorage.getItem("webDeviceId");
-
-            if (!deviceId) {
-                alert("Perangkat belum terdaftar di sistem!");
-                return;
-            }
+            
+            if (!deviceId) { alert("Perangkat belum terdaftar!"); return; }
 
             btn.disabled = true;
             btn.innerText = "Memverifikasi...";
@@ -96,30 +70,31 @@ function initGPS() {
                 uraianTugas: isAbsenPulang ? document.getElementById('etUraian').value : "Absen Masuk Kerja",
                 outputKegiatan: isAbsenPulang ? document.getElementById('etOutput').value : "Hadir",
                 latitude: lat,
-                longitude: lng
+                longitude: lng,
+                isMock: false
             };
 
             try {
-                // Gunakan mode 'cors' agar kita bisa menerima teks respons dari GAS
                 const res = await fetch(scriptUrl, {
                     method: 'POST',
-                    mode: 'cors', 
+                    mode: 'cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 
                 const responseText = await res.text();
 
-                if (responseText.includes("Terdaftar")) {
-                    alert("Absensi Berhasil: " + responseText);
+                // Algoritma Penyesuaian: Menangkap keyword "Sukses" atau "Gagal" dari kode.gs
+                if (responseText.includes("Sukses")) {
+                    alert("Berhasil: " + responseText);
                     location.reload();
                 } else {
-                    alert("Akses Ditolak: " + responseText);
+                    alert("Gagal: " + responseText);
                     btn.disabled = false;
                     btn.innerText = "ABSEN SEKARANG";
                 }
             } catch (e) {
-                alert("Kesalahan Koneksi ke Server");
+                alert("Kesalahan Koneksi ke Server. Pastikan deployment 'Anyone' sudah benar.");
                 btn.disabled = false;
                 btn.innerText = "ABSEN SEKARANG";
             }
